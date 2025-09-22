@@ -10,7 +10,7 @@ if getattr(sys, "frozen", False):
     sys.path.insert(0, os.path.dirname(sys.executable))
 
 if __package__ in (None, ""):
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
@@ -54,7 +54,7 @@ def run():
     try:
         from . import app_entry_utils as ui  # type: ignore
     except ImportError:
-        from gum.gum_app_apple import app_entry_utils as ui  # type: ignore
+        from gum.app.macos import app_entry_utils as ui  # type: ignore
 
     # ------- Settings and defaults -------
     app_support_root = os.path.expanduser("~/Library/Application Support")
