@@ -7,14 +7,20 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 try:
-    import Quartz  # type: ignore
-except Exception:  # pragma: no cover - Quartz unavailable outside macOS
+    import Quartz 
+except Exception: 
     Quartz = None
 
 try:
-    from AppKit import NSWorkspace  # type: ignore
-except Exception:  # pragma: no cover - AppKit unavailable outside macOS
+    from AppKit import NSWorkspace 
+except Exception: 
     NSWorkspace = None
+
+
+__all__ = [
+    "MacOSAppAndBrowserInspector",
+    "check_automation_permission_granted",
+]
 
 
 SYSTEM_WINDOW_OWNERS = {"dock", "windowserver", "window server"}
@@ -142,7 +148,7 @@ def check_automation_permission_granted(force_refresh: bool = False) -> bool | N
     if cache_hit:
         return cached_value
 
-    inspector = AppleUIInspector(logging.getLogger("gum.automation_probe"))
+    inspector = MacOSAppAndBrowserInspector(logging.getLogger("gum.automation_probe"))
     running = inspector._running_browser_applications()
 
     denied_detected = False
@@ -171,7 +177,7 @@ def check_automation_permission_granted(force_refresh: bool = False) -> bool | N
 
 
 @dataclass
-class AppleUIInspector:
+class MacOSAppAndBrowserInspector:
     logger: logging.Logger
     last_frontmost_bundle_id: Optional[str] = None
     unknown_browser_apps: set[str] = field(default_factory=set)
@@ -406,4 +412,3 @@ class AppleUIInspector:
                 return simplified
 
         return None
-

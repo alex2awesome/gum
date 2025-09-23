@@ -9,16 +9,13 @@ class Observer(ABC):
         self.update_queue = asyncio.Queue()
         self._name = name or self.__class__.__name__
 
-        # running flag + background task handle
         self._running = True
         self._task: asyncio.Task | None = asyncio.create_task(self._worker_wrapper())
 
-    # ─────────────────────────────── abstract worker
     @abstractmethod
-    async def _worker(self) -> None:     # subclasses override
+    async def _worker(self) -> None:
         pass
 
-    # wrapper plugs running flag + exception handling
     async def _worker_wrapper(self) -> None:
         try:
             await self._worker()

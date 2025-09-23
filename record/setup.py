@@ -12,6 +12,7 @@ setup(
         "pynput",  # For mouse/keyboard monitoring
         "shapely",  # For geometry operations
         "pyobjc-framework-Quartz",  # For macOS window management
+        "pyobjc-framework-Cocoa",   # For AppKit (GUI, NSEvent)
         "openai>=1.0.0",
         "SQLAlchemy>=2.0.0",
         "pydantic>=2.0.0",

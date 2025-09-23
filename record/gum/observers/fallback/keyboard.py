@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Optional
 
 from pynput import keyboard
 
-_KeyDispatch = Callable[[str, str], None]
+from ..base.keyboard import KeyDispatch, KeyboardBackend
 
 
 def _token_from_key(key: keyboard.Key | keyboard.KeyCode) -> Optional[str]:
@@ -24,20 +24,21 @@ def _token_from_key(key: keyboard.Key | keyboard.KeyCode) -> Optional[str]:
     return None
 
 
-class PynputKeyboardMonitor:
+class PynputKeyboardBackend(KeyboardBackend):
     """Simple keyboard listener that reports events via a callback."""
 
-    def __init__(self, dispatch: _KeyDispatch) -> None:
-        self._dispatch = dispatch
+    def __init__(self) -> None:
         self._listener: Optional[keyboard.Listener] = None
+        self._dispatch: Optional[KeyDispatch] = None
 
-    def start(self) -> None:
+    def start(self, dispatch: KeyDispatch) -> None:
+        self._dispatch = dispatch
         if self._listener is not None:
             return
 
         def _emit(event_key, event_type: str) -> None:
             token = _token_from_key(event_key)
-            if not token:
+            if not token or self._dispatch is None:
                 return
             try:
                 self._dispatch(token, event_type)
@@ -57,3 +58,4 @@ class PynputKeyboardMonitor:
             self._listener.stop()
         finally:
             self._listener = None
+            self._dispatch = None

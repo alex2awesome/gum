@@ -10,7 +10,7 @@ from logging.handlers import RotatingFileHandler
 from .models import Observation, init_db
 from .observers import Observer
 from .schemas import Update
-from .observers import AppleUIInspector as UIInspector
+from .observers import AppAndBrowserInspector
 
 class gum:
     def __init__(
@@ -37,15 +37,13 @@ class gum:
             h = logging.StreamHandler()
             h.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
             self.logger.addHandler(h)
-            # Persistent log file in data directory
             try:
                 file_handler = RotatingFileHandler(
                     os.path.join(data_directory, "gum.log"), maxBytes=2_000_000, backupCount=3
                 )
                 file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
                 self.logger.addHandler(file_handler)
-            except Exception:
-                # If file logging fails, keep console logging only
+            except Exception: # if fails, keep console logging only
                 pass
 
         self.engine = None
@@ -57,7 +55,7 @@ class gum:
         self._tasks: set[asyncio.Task] = set()
         self._loop_task: asyncio.Task | None = None
         self.update_handlers: list[Callable[[Observer, Update], None]] = []
-        self._apple = UIInspector(self.logger)
+        self._app_and_browser_inspector = AppAndBrowserInspector(self.logger)
 
     def start_update_loop(self):
         if self._loop_task is None:
@@ -81,33 +79,28 @@ class gum:
     async def __aenter__(self):
         await self.connect_db()
         try:
-            await asyncio.to_thread(self._apple.prime_automation_for_running_browsers)
+            await asyncio.to_thread(self._app_and_browser_inspector.prime_automation_for_running_browsers)
         except AttributeError:
-            # asyncio.to_thread not available on very old Python builds
             await asyncio.get_running_loop().run_in_executor(
-                None, self._apple.prime_automation_for_running_browsers
+                None, self._app_and_browser_inspector.prime_automation_for_running_browsers
             )
         self.start_update_loop()
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
         await self.stop_update_loop()
-
-        # wait for any in-flight handlers
         if self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
-
-        # stop observers
+        # stop
         for obs in self.observers:
             await obs.stop()
 
     async def _update_loop(self):
         """
-        Efficiently wait for *any* observer to produce an Update and
+        Wait for *any* observer to produce an Update and
         dispatch it through the semaphore-guarded handler.
         """
         while True:
-
             gets = {
                 asyncio.create_task(obs.update_queue.get()): obs
                 for obs in self.observers
@@ -140,8 +133,8 @@ class gum:
         self.logger.info(f"Content ({update.content_type}): {update.content[:10]}")
 
         async with self._session() as session:
-            app_name = self._apple.get_frontmost_app_name()
-            browser_url = self._apple.get_browser_url(app_name) if app_name else None
+            app_name = self._app_and_browser_inspector.get_frontmost_app_name()
+            browser_url = self._app_and_browser_inspector.get_browser_url(app_name) if app_name else None
             if app_name:
                 self.logger.debug("Active app resolved to '%s'%s", app_name, f" (url={browser_url})" if browser_url else "")
 

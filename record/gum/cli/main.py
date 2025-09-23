@@ -70,7 +70,6 @@ async def _run_cli() -> None:
         scroll_min_distance=args.scroll_min_distance,
         scroll_max_frequency=args.scroll_max_frequency,
         scroll_session_timeout=args.scroll_session_timeout,
-        keyboard_backend="pynput",
     )
 
     async with GumApp(args.user_name, screen_observer, data_directory=args.data_directory):
