@@ -4,7 +4,19 @@ set -euo pipefail
 # Resolve project root (directory of this script)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+# Find the nearest parent directory containing setup.py or pyproject.toml
+PROJECT_ROOT="$SCRIPT_DIR"
+while true; do
+  if [ -f "$PROJECT_ROOT/pyproject.toml" ] || [ -f "$PROJECT_ROOT/setup.py" ]; then
+    break
+  fi
+  PARENT="$(dirname "$PROJECT_ROOT")"
+  if [ "$PARENT" = "$PROJECT_ROOT" ]; then
+    echo "Could not locate a Python project root (setup.py or pyproject.toml)." >&2
+    exit 1
+  fi
+  PROJECT_ROOT="$PARENT"
+done
 
 # Args:
 #  $1: version (optional) OR env name if not a version

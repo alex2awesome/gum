@@ -14,8 +14,12 @@ if __package__ in (None, ""):
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
-from gum.cli import main
-from gum.cli import BackgroundRecorder
+try:
+    from ...cli import main
+    from ...cli import BackgroundRecorder
+except ImportError:
+    from gum.cli import main
+    from gum.cli import BackgroundRecorder
 
 def _detect_app_version() -> str:
     # Priority: env override, Info.plist in bundled app, fallback
