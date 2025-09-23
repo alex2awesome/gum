@@ -34,7 +34,10 @@ DEFAULT_SETTINGS = {
 
 
 class MainThreadKeyboardRecorderShim:
-    """Main-thread keyboard monitor that forwards tokens to the recorder."""
+    """We need a small shim running in the main thread to forward keyboard events to the recorder
+    because on MacOS there is a security sandbox that prevents background threads from
+    listening to keyboard events.
+    """
 
     def __init__(self) -> None:
         self._monitors: list[Any] = []

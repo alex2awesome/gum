@@ -124,30 +124,11 @@ python -m pip install -e .
 popd >/dev/null
 
 echo "==> Building macOS .app with PyInstaller"
-pyinstaller \
-  --noconfirm \
-  --windowed \
-  --name "${APP_NAME}" \
-  --osx-bundle-identifier "${IDENTIFIER}" \
-  --collect-submodules sqlalchemy \
-  --collect-submodules sqlalchemy_utils \
-  --collect-submodules pydantic \
-  --collect-submodules aiosqlite \
-  --collect-submodules shapely \
-  --collect-data shapely \
-  --collect-submodules pynput \
-  --collect-submodules mss \
-  --collect-submodules gum.cli \
-  --collect-submodules gum.observers \
-  --hidden-import Quartz \
-  --hidden-import AppKit \
-  --hidden-import pyobjc_framework_AppKit \
-  --hidden-import dotenv \
-  --hidden-import gum.observers.base.observer \
-  --hidden-import gum.observers.macos.screen \
-  --hidden-import gum.observers.macos.ui \
-  --hidden-import gum.observers.fallback.keyboard \
-  app_entry.py
+export PYINSTALLER_APP_NAME="${APP_NAME}"
+export PYINSTALLER_BUNDLE_IDENTIFIER="${IDENTIFIER}"
+pyinstaller --noconfirm "${SCRIPT_DIR}/Gum Recorder.spec"
+unset PYINSTALLER_APP_NAME
+unset PYINSTALLER_BUNDLE_IDENTIFIER
 
 APP_PATH="${SCRIPT_DIR}/dist/${APP_NAME}.app"
 INFO_PLIST="${APP_PATH}/Contents/Info.plist"
@@ -217,4 +198,3 @@ echo "==> Build complete"
 echo "Open the app at: ${APP_PATH}"
 echo "Version: ${VERSION}"
 echo "Note: On first run, macOS will ask for Screen Recording, Accessibility, Input Monitoring, and Automation permissions."
-
