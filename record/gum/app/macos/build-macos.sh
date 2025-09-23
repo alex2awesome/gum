@@ -137,9 +137,15 @@ pyinstaller \
   --collect-data shapely \
   --collect-submodules pynput \
   --collect-submodules mss \
-  --collect-submodules tkinter \
+  --collect-submodules gum.observers \
   --hidden-import Quartz \
+  --hidden-import AppKit \
+  --hidden-import pyobjc_framework_AppKit \
   --hidden-import dotenv \
+  --hidden-import gum.observers.base.observer \
+  --hidden-import gum.observers.macos.screen \
+  --hidden-import gum.observers.macos.ui \
+  --hidden-import gum.observers.fallback.keyboard \
   app_entry.py
 
 APP_PATH="${SCRIPT_DIR}/dist/${APP_NAME}.app"

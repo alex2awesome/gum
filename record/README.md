@@ -39,11 +39,24 @@ The app saves data under `~/Downloads/records`.
 
 ## Usage
 
+### CLI (Terminal)
+
+1. Grant your terminal application (Terminal, iTerm2, etc.) Accessibility and Input Monitoring permissions in **System Settings → Privacy & Security**.
+2. Activate the environment where you installed the package and run:
+
 ```bash
-gum
+gum --user-name "your-name"
 ```
 
-The recorded actions and screenshots will be saved in `~/Downloads/records`.
+   The CLI defaults to the pynput keyboard backend so it works inside a terminal window without a Cocoa run loop. Data and screenshots go to `~/Downloads/records` unless you override `--data-directory` / `--screenshots-dir`.
+
+3. You can also invoke the entrypoint directly:
+
+```bash
+python -m gum.cli.main --debug
+```
+
+   Use `GUM_DISABLE_KEYBOARD=1` if you need to launch without keyboard logging (for example while debugging permissions).
 
 ### Scroll Filtering Options
 

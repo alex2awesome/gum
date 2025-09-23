@@ -3,7 +3,7 @@ from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_submodules
 
 datas = []
-hiddenimports = ['Quartz', 'dotenv']
+hiddenimports = ['Quartz', 'AppKit', 'pyobjc_framework_AppKit', 'dotenv', 'gum.observers.base.observer', 'gum.observers.macos.screen', 'gum.observers.macos.ui', 'gum.observers.fallback.keyboard']
 datas += collect_data_files('shapely')
 hiddenimports += collect_submodules('sqlalchemy')
 hiddenimports += collect_submodules('sqlalchemy_utils')
@@ -12,7 +12,7 @@ hiddenimports += collect_submodules('aiosqlite')
 hiddenimports += collect_submodules('shapely')
 hiddenimports += collect_submodules('pynput')
 hiddenimports += collect_submodules('mss')
-hiddenimports += collect_submodules('tkinter')
+hiddenimports += collect_submodules('gum.observers')
 
 
 a = Analysis(
@@ -35,7 +35,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='Gum Recorder v0.0.36',
+    name='Gum Recorder v0.0.40',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -54,11 +54,11 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='Gum Recorder v0.0.36',
+    name='Gum Recorder v0.0.40',
 )
 app = BUNDLE(
     coll,
-    name='Gum Recorder v0.0.36.app',
+    name='Gum Recorder v0.0.40.app',
     icon=None,
-    bundle_identifier='com.local.gumrecorder.v0.0.36',
+    bundle_identifier='com.local.gumrecorder.v0.0.40',
 )

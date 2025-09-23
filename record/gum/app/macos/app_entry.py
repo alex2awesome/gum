@@ -69,7 +69,6 @@ def run():
     settings = ui.load_settings(settings_path, default_output_dir)
     output_dir = settings.get("output_dir", default_output_dir)
     screenshots_dir = os.path.join(output_dir, "screenshots")
-    kb_recorder = ui.KeyboardRecorder()
     output_dir_display_var = None
     output_path_tooltip = None
 
@@ -357,11 +356,6 @@ def run():
     output_path_tooltip = ui.Tooltip(output_dir_dropdown, os.path.abspath(output_dir), delay=0)
 
     # Main-thread pump for any queued tasks from keyboard recorder
-    def pump():
-        kb_recorder.pump_main_thread_tasks()
-        root.after(100, pump)
-    pump()
-
     # Periodically refresh permission statuses
     def periodic_refresh():
         try:

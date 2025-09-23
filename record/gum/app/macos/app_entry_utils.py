@@ -10,7 +10,7 @@ import tkinter as tk
 from pathlib import Path
 from typing import Any
 
-from .gum_apple_utils import AppleUIInspector, check_automation_permission_granted
+from ...observers.macos import AppleUIInspector, check_automation_permission_granted
 
 
 DEFAULT_SETTINGS = {
@@ -20,22 +20,6 @@ DEFAULT_SETTINGS = {
     ),
     "onboarding_done": False,
 }
-
-
-class KeyboardRecorder:
-    """Deprecated placeholder to keep UI stable; no background keyboard tracking."""
-
-    def __init__(self, *_: Any, **__: Any) -> None:  # pragma: no cover - shim
-        pass
-
-    def start(self) -> None:  # pragma: no cover - shim
-        pass
-
-    def stop(self) -> None:  # pragma: no cover - shim
-        pass
-
-    def pump_main_thread_tasks(self) -> None:  # pragma: no cover - shim
-        pass
 
 
 class Tooltip:

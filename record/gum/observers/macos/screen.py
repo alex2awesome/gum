@@ -23,14 +23,15 @@ import mss
 import Quartz
 from PIL import Image, ImageDraw
 from pynput import mouse           # mouse only
+from ..fallback import PynputKeyboardMonitor
 from shapely.geometry import box
 from shapely.ops import unary_union
 
 # — PyObjC —
 
 # — Local —
-from .observer import Observer
-from ..schemas import Update
+from ..base import Observer
+from ...schemas import Update
 
 # — AppKit (for keyboard monitoring) —
 try:
@@ -259,6 +260,7 @@ class Screen(Observer):
         keyboard_timeout: float = 2.0,
         keystroke_log_path: Optional[str] = None,
         keyboard_sample_interval_sec: float = 0.25,
+        keyboard_backend: str = "auto",
         gdrive_dir: str = "screenshots",
         client_secrets_path: str = "~/Desktop/client_secrets.json",
         scroll_debounce_sec: float = 0.5,
@@ -302,6 +304,11 @@ class Screen(Observer):
             os.path.abspath(os.path.expanduser(keystroke_log_path)) if keystroke_log_path else None
         )
         self._keyboard_sample_interval_sec: float = max(0.0, float(keyboard_sample_interval_sec))
+        self._keyboard_backend_preference = (keyboard_backend or "auto").lower()
+        if self._keyboard_backend_preference not in {"auto", "appkit", "pynput"}:
+            raise ValueError(f"Unsupported keyboard backend: {keyboard_backend}")
+        self._keyboard_backend: Optional[str] = None
+        self._pynput_keyboard_monitor: Optional[PynputKeyboardMonitor] = None
 
         # scroll activity tracking
         self._scroll_last_time: Optional[float] = None
@@ -484,6 +491,12 @@ class Screen(Observer):
     async def stop(self) -> None:
         """Stop the observer and clean up resources."""
         await super().stop()
+
+        if self._pynput_keyboard_monitor:
+            try:
+                self._pynput_keyboard_monitor.stop()
+            finally:
+                self._pynput_keyboard_monitor = None
         
         # Clean up frame objects
         async with self._frame_lock:
@@ -542,8 +555,15 @@ class Screen(Observer):
             )
             mouse_listener.start()
             
-            # Keyboard monitoring: AppKit only on main thread
-            if NSEvent is not None:
+            # Keyboard monitoring: prefer AppKit when available, otherwise fall back to pynput
+            self._keyboard_backend = None
+            self._pynput_keyboard_monitor = None
+            use_pynput_keyboard = False
+            preferred_backend = self._keyboard_backend_preference
+            if os.environ.get("GUM_DISABLE_KEYBOARD") == "1":
+                preferred_backend = "disabled"
+
+            if NSEvent is not None and preferred_backend in ("auto", "appkit"):
                 def _register_ns_monitors():
                     monitors = []
 
@@ -585,15 +605,41 @@ class Screen(Observer):
                         monitors.append(NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(NSEventMaskKeyDown, on_down))
                         monitors.append(NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(NSEventMaskKeyUp, on_up))
                         self._ns_event_monitors = monitors
-                    except Exception as e:
-                        log.warning(f"Failed to register AppKit keyboard monitors: {e}")
+                    except Exception as exc:
+                        log.warning(f"Failed to register AppKit keyboard monitors: {exc}")
 
-                # Directly register (assuming main thread for AppKit callbacks)
                 _register_ns_monitors()
                 if self._ns_event_monitors:
+                    self._keyboard_backend = "appkit"
                     log.info("Keyboard monitoring enabled (AppKit)")
                 else:
                     log.warning("AppKit keyboard monitors not active")
+                    if preferred_backend == "auto":
+                        use_pynput_keyboard = True
+            else:
+                if preferred_backend == "appkit":
+                    log.warning("AppKit keyboard backend requested but unavailable; keyboard capture disabled")
+                elif preferred_backend != "disabled":
+                    use_pynput_keyboard = True
+
+            if preferred_backend == "pynput":
+                use_pynput_keyboard = True
+
+            if use_pynput_keyboard:
+                try:
+                    monitor = PynputKeyboardMonitor(schedule_key_token_event)
+                    monitor.start()
+                    self._pynput_keyboard_monitor = monitor
+                    self._keyboard_backend = "pynput"
+                    log.info("Keyboard monitoring enabled (pynput)")
+                except Exception as exc:
+                    self._pynput_keyboard_monitor = None
+                    log.warning(f"Failed to start pynput keyboard monitor: {exc}")
+            elif preferred_backend in ("auto", "appkit"):
+                self._pynput_keyboard_monitor = None
+
+            if preferred_backend == "disabled":
+                log.info("Keyboard monitoring disabled via GUM_DISABLE_KEYBOARD")
 
             # ---- nested helper inside the async context ----
             async def flush():
@@ -639,7 +685,7 @@ class Screen(Observer):
             #     asyncio.create_task(flush())
 
             # ---- keyboard event reception ----
-            # Remove pynput-based key event path entirely
+            # Key events arrive via the active backend (AppKit or pynput)
 
             # Variant that accepts a precomputed token (used by AppKit monitors)
             async def key_token_event(tok: str, typ: str):
@@ -857,6 +903,12 @@ class Screen(Observer):
 
             # shutdown
             mouse_listener.stop()
+            if self._pynput_keyboard_monitor:
+                try:
+                    self._pynput_keyboard_monitor.stop()
+                finally:
+                    self._pynput_keyboard_monitor = None
+
             # Remove AppKit monitors if any
             if self._ns_event_monitors:
                 try:

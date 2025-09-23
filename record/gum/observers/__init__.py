@@ -1,10 +1,27 @@
-"""
-Observer module for GUM - General User Models.
+"""Observer package orchestrating platform-specific implementations."""
 
-This module provides observer classes for different types of user interactions.
-"""
+from __future__ import annotations
 
-from .observer import Observer
-from .screen import Screen
+import sys
+from typing import Type
 
-__all__ = ["Observer", "Screen"] 
+from .base import Observer
+
+Screen: Type[Observer] | None = None
+AppleUIInspector = None
+
+if sys.platform == "darwin":
+    try:
+        from .macos import Screen as _MacScreen  # type: ignore F401
+        from .macos import AppleUIInspector as _MacAppleUIInspector  # type: ignore F401
+    except Exception:  # pragma: no cover - best effort import guard
+        Screen = None
+        AppleUIInspector = None
+    else:
+        Screen = _MacScreen
+        AppleUIInspector = _MacAppleUIInspector
+else:
+    Screen = None
+    AppleUIInspector = None
+
+__all__ = ["Observer", "Screen", "AppleUIInspector"]

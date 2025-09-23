@@ -10,7 +10,7 @@ from logging.handlers import RotatingFileHandler
 from .models import Observation, init_db
 from .observers import Observer
 from .schemas import Update
-from .app.macos import AppleUIInspector as UIInspector
+from .observers import AppleUIInspector as UIInspector
 
 class gum:
     def __init__(

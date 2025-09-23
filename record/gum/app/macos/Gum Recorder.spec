@@ -7,9 +7,10 @@ APP_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = APP_DIR.parent.parent
 
 datas = []
-hiddenimports = ['Quartz', 'dotenv', 'pyobjc', 'pyobjc_core', 'pyobjc_framework_Quartz']
+hiddenimports = ['Quartz', 'AppKit', 'pyobjc_framework_AppKit', 'dotenv', 'pyobjc', 'pyobjc_core', 'pyobjc_framework_Quartz', 'gum.observers.base.observer', 'gum.observers.macos.screen', 'gum.observers.macos.ui', 'gum.observers.fallback.keyboard']
 datas += collect_data_files('shapely')
 hiddenimports += collect_submodules('sqlalchemy')
+hiddenimports += collect_submodules('gum.observers')
 hiddenimports += collect_submodules('sqlalchemy_utils')
 hiddenimports += collect_submodules('pydantic')
 hiddenimports += collect_submodules('aiosqlite')
