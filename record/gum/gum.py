@@ -91,7 +91,6 @@ class gum:
         await self.stop_update_loop()
         if self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
-        # stop
         for obs in self.observers:
             await obs.stop()
 

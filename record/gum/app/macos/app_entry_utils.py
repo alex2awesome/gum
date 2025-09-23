@@ -14,8 +14,9 @@ import threading
 from collections import deque
 
 from ...observers.macos import AppleUIInspector, check_automation_permission_granted
-from ...observers.macos.keyboard import event_token_from_nsevent
+from ...observers.macos.keyboard import event_token_from_nsevent, register_appkit_key_monitors, remove_appkit_monitors
 from ...cli.background import BackgroundRecorder
+from ...observers.constants import KEYBOARD_PUMP_INTERVAL_MS, PERMISSION_REFRESH_INTERVAL_MS
 
 try:  # AppKit is only available on macOS
     from AppKit import NSEvent, NSEventMaskKeyDown, NSEventMaskKeyUp
@@ -74,10 +75,7 @@ class MainThreadKeyboardRecorderShim:
             _enqueue(self._event_token(ev), "release")
 
         try:
-            self._monitors = [
-                NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(NSEventMaskKeyDown, on_down),
-                NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(NSEventMaskKeyUp, on_up),
-            ]
+            self._monitors = register_appkit_key_monitors(on_down, on_up)
             self._running = True
         except Exception:
             self._monitors = []
@@ -93,11 +91,7 @@ class MainThreadKeyboardRecorderShim:
         if not self._running:
             return
         try:
-            for monitor in self._monitors:
-                try:
-                    NSEvent.removeMonitor_(monitor)
-                except Exception:
-                    pass
+            remove_appkit_monitors(self._monitors)
         finally:
             self._monitors = []
             self._running = False
@@ -479,7 +473,7 @@ def prompt_automation_access() -> None:
     if AppleUIInspector is not None:
         try:
             inspector = AppleUIInspector(logging.getLogger("gum.ui.automation_prompt"))
-            running_snapshot = list(inspector._running_browser_applications())
+            running_snapshot = list(inspector.running_browser_applications())
         except Exception:
             inspector = None
             running_snapshot = []
@@ -590,7 +584,7 @@ def _collect_automation_guidance(status_before: bool | None, status_after: bool 
     running = list(running_snapshot)
     if not running and inspector is not None:
         try:
-            running = list(inspector._running_browser_applications())
+            running = list(inspector.running_browser_applications())
         except Exception:
             running = []
     if not running:

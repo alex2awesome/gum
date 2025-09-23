@@ -56,6 +56,30 @@ def event_token_from_nsevent(event) -> str:
     return tok
 
 
+def register_appkit_key_monitors(on_key_down, on_key_up) -> list[object]:
+    """Register global AppKit key down/up monitors and return monitor handles.
+
+    Raises RuntimeError if AppKit is unavailable.
+    """
+    if NSEvent is None:
+        raise RuntimeError("AppKit is not available on this platform")
+    monitors: list[object] = [
+        NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(NSEventMaskKeyDown, on_key_down),
+        NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(NSEventMaskKeyUp, on_key_up),
+    ]
+    return monitors
+
+
+def remove_appkit_monitors(monitors: list[object]) -> None:
+    if not monitors or NSEvent is None:
+        return
+    for monitor in monitors:
+        try:
+            NSEvent.removeMonitor_(monitor)
+        except Exception:
+            pass
+
+
 class AppKitKeyboardBackend(KeyboardBackend):
     """Keyboard backend built on AppKit global event monitoring."""
 
@@ -86,18 +110,7 @@ class AppKitKeyboardBackend(KeyboardBackend):
                 log.debug(f"Failed to dispatch AppKit {kind} event: {exc}")
 
         try:
-            self._monitors.append(
-                NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(
-                    NSEventMaskKeyDown,
-                    lambda ev: emit(ev, "press"),
-                )
-            )
-            self._monitors.append(
-                NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(
-                    NSEventMaskKeyUp,
-                    lambda ev: emit(ev, "release"),
-                )
-            )
+            self._monitors = register_appkit_key_monitors(lambda ev: emit(ev, "press"), lambda ev: emit(ev, "release"))
         except Exception as exc:
             self.stop()
             raise RuntimeError(f"Failed to register AppKit monitors: {exc}") from exc
@@ -109,11 +122,7 @@ class AppKitKeyboardBackend(KeyboardBackend):
             self._monitors = []
             return
         try:
-            for monitor in self._monitors:
-                try:
-                    NSEvent.removeMonitor_(monitor)
-                except Exception:
-                    pass
+            remove_appkit_monitors(self._monitors)
         finally:
             self._monitors = []
             self._dispatch = None

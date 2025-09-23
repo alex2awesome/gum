@@ -14,6 +14,17 @@ from PIL import Image, ImageDraw
 from pynput import mouse
 
 from .observer import Observer
+from ..constants import (
+    CAPTURE_FPS_DEFAULT,
+    MEMORY_CLEANUP_INTERVAL_DEFAULT,
+    MON_START_INDEX,
+    KEYBOARD_TIMEOUT_DEFAULT,
+    KEYBOARD_SAMPLE_INTERVAL_DEFAULT,
+    SCROLL_DEBOUNCE_SEC_DEFAULT,
+    SCROLL_MIN_DISTANCE_DEFAULT,
+    SCROLL_MAX_FREQUENCY_DEFAULT,
+    SCROLL_SESSION_TIMEOUT_DEFAULT,
+)
 from .keyboard import KeyDispatch, KeyboardBackend, NullKeyboardBackend
 from .mouse import MouseBackend, NullMouseBackend
 from .screenshots import ScreenshotBackend
@@ -25,17 +36,17 @@ VisibilityGuard = Callable[[Iterable[str]], bool]
 class Screen(Observer):
     """Platform-agnostic core for observing screen, keyboard, and mouse activity."""
 
-    _CAPTURE_FPS: int = 5
+    _CAPTURE_FPS: int = CAPTURE_FPS_DEFAULT
     _PERIODIC_SEC: int = 30
     _DEBOUNCE_SEC: int = 1
-    _MON_START: int = 1
-    _MEMORY_CLEANUP_INTERVAL: int = 30
+    _MON_START: int = MON_START_INDEX
+    _MEMORY_CLEANUP_INTERVAL: int = MEMORY_CLEANUP_INTERVAL_DEFAULT
     _MAX_WORKERS: int = 4
 
-    _SCROLL_DEBOUNCE_SEC: float = 0.8
-    _SCROLL_MIN_DISTANCE: float = 8.0
-    _SCROLL_MAX_FREQUENCY: int = 8
-    _SCROLL_SESSION_TIMEOUT: float = 3.0
+    _SCROLL_DEBOUNCE_SEC: float = SCROLL_DEBOUNCE_SEC_DEFAULT
+    _SCROLL_MIN_DISTANCE: float = SCROLL_MIN_DISTANCE_DEFAULT
+    _SCROLL_MAX_FREQUENCY: int = SCROLL_MAX_FREQUENCY_DEFAULT
+    _SCROLL_SESSION_TIMEOUT: float = SCROLL_SESSION_TIMEOUT_DEFAULT
 
     def __init__(
         self,
@@ -48,13 +59,13 @@ class Screen(Observer):
         skip_when_visible: Optional[str | Sequence[str]] = None,
         history_k: int = 10,
         debug: bool = False,
-        keyboard_timeout: float = 2.0,
+        keyboard_timeout: float = KEYBOARD_TIMEOUT_DEFAULT,
         keystroke_log_path: Optional[str] = None,
-        keyboard_sample_interval_sec: float = 0.25,
-        scroll_debounce_sec: float = 0.5,
-        scroll_min_distance: float = 5.0,
-        scroll_max_frequency: int = 10,
-        scroll_session_timeout: float = 2.0,
+        keyboard_sample_interval_sec: float = KEYBOARD_SAMPLE_INTERVAL_DEFAULT,
+        scroll_debounce_sec: float = SCROLL_DEBOUNCE_SEC_DEFAULT,
+        scroll_min_distance: float = SCROLL_MIN_DISTANCE_DEFAULT,
+        scroll_max_frequency: int = SCROLL_MAX_FREQUENCY_DEFAULT,
+        scroll_session_timeout: float = SCROLL_SESSION_TIMEOUT_DEFAULT,
     ) -> None:
         self._keyboard_backend = keyboard_backend or NullKeyboardBackend()
         self._mouse_backend = mouse_backend or NullMouseBackend()

@@ -15,7 +15,7 @@ pip install -e .[monitoring]
 
 Make sure to enable recording on your Mac: go to System Preferences -> Privacy & Security -> Accessibility, allow recording for the app that you use to edit the code, e.g., vscode.
 
-## macOS App (Double‑clickable)
+## Standalone App (currently only on MacOS)
 
 We provide a build script that creates a `.app` you can double‑click.
 
@@ -59,6 +59,15 @@ python -m gum.cli.main --debug
    Use `GUM_DISABLE_KEYBOARD=1` if you need to launch without keyboard logging (for example while debugging permissions).
 
 ### Scroll Filtering Options
+### macOS note: GUM_DISABLE_KEYBOARD
+
+On macOS, AppKit requires keyboard event monitors to be registered from the main thread. Our GUI app (Tk-based) sets up a main-thread shim that captures AppKit key events and forwards them into the background recorder thread. To avoid registering a second keyboard listener in the background thread (which can fail due to macOS security constraints), the GUI sets the environment variable `GUM_DISABLE_KEYBOARD=1` before starting the background recorder. The observer (`Screen`) checks this variable and skips starting its keyboard backend when the shim is active.
+
+- When running the GUI app: the main-thread shim is used; `GUM_DISABLE_KEYBOARD=1` is set automatically.
+- When running the CLI: no shim is present; leave the variable unset so the keyboard backend runs normally.
+
+Only set `GUM_DISABLE_KEYBOARD=1` if you explicitly want to disable the keyboard backend (e.g., to debug permissions) and rely on the GUI shim, or run without keyboard capture.
+
 
 To reduce unnecessary scroll logging, you can configure scroll filtering parameters:
 

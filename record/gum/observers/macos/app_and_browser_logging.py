@@ -149,7 +149,7 @@ def check_automation_permission_granted(force_refresh: bool = False) -> bool | N
         return cached_value
 
     inspector = MacOSAppAndBrowserInspector(logging.getLogger("gum.automation_probe"))
-    running = inspector._running_browser_applications()
+    running = inspector.running_browser_applications()
 
     denied_detected = False
     attempted = False
@@ -333,7 +333,7 @@ class MacOSAppAndBrowserInspector:
             log.debug("Unexpected error fetching browser URL for '%s': %s", app_name, exc)
             return None
 
-    def _running_browser_applications(self) -> list[tuple[str, str, str]]:
+    def running_browser_applications(self) -> list[tuple[str, str, str]]:
         if NSWorkspace is None:
             return []
         try:
@@ -367,7 +367,7 @@ class MacOSAppAndBrowserInspector:
             return True
 
         attempted = False
-        for app_name, key, bundle_id in self._running_browser_applications():
+        for app_name, key, bundle_id in self.running_browser_applications():
             attempted = True
             previous_bundle = self.last_frontmost_bundle_id
             try:
