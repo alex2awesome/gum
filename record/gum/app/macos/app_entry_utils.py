@@ -14,6 +14,7 @@ import threading
 from collections import deque
 
 from ...observers.macos import AppleUIInspector, check_automation_permission_granted
+from ...observers.macos.keyboard import event_token_from_nsevent
 from ...cli.background import BackgroundRecorder
 
 try:  # AppKit is only available on macOS
@@ -47,21 +48,11 @@ class MainThreadKeyboardRecorderShim:
 
     @staticmethod
     def _event_token(ev) -> str:
-        vk = None
-        txt = ""
+        # Delegate to shared backend helper to avoid duplication
         try:
-            vk = int(ev.keyCode())
+            return event_token_from_nsevent(ev)
         except Exception:
-            pass
-        try:
-            txt = ev.characters() or ev.charactersIgnoringModifiers() or ""
-        except Exception:
-            txt = ""
-        if txt:
-            return f"TEXT:{txt}"
-        if vk is not None:
-            return f"VK:{vk}"
-        return "KEY:unknown"
+            return "KEY:unknown"
 
     def start(self) -> bool:
         if self._running:

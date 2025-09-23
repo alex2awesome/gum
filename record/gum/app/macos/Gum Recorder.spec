@@ -13,7 +13,7 @@ APP_NAME = os.environ.get("PYINSTALLER_APP_NAME", "Gum Recorder")
 BUNDLE_IDENTIFIER = os.environ.get("PYINSTALLER_BUNDLE_IDENTIFIER", "com.local.gumrecorder")
 
 datas = []
-hiddenimports = ['Quartz', 'AppKit', 'pyobjc_framework_AppKit', 'dotenv', 'pyobjc', 'pyobjc_core', 'pyobjc_framework_Quartz', 'gum.observers.base.observer', 'gum.observers.base.screen', 'gum.observers.base.keyboard', 'gum.observers.base.mouse', 'gum.observers.base.screenshots', 'gum.observers.macos.keyboard', 'gum.observers.macos.mouse', 'gum.observers.macos.screenshots', 'gum.observers.macos.app_and_browser_logging', 'gum.observers.fallback.keyboard', 'gum.observers.fallback.mouse', 'gum.observers.fallback.screenshots']
+hiddenimports = ['Quartz', 'AppKit', 'Foundation', 'dotenv', 'gum.observers.base.observer', 'gum.observers.base.screen', 'gum.observers.base.keyboard', 'gum.observers.base.mouse', 'gum.observers.base.screenshots', 'gum.observers.macos.keyboard', 'gum.observers.macos.mouse', 'gum.observers.macos.screenshots', 'gum.observers.macos.app_and_browser_logging', 'gum.observers.fallback.keyboard', 'gum.observers.fallback.mouse', 'gum.observers.fallback.screenshots']
 datas += collect_data_files('shapely')
 hiddenimports += collect_submodules('sqlalchemy')
 hiddenimports += collect_submodules('gum.observers')
