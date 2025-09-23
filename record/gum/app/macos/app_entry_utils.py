@@ -10,7 +10,18 @@ import tkinter as tk
 from pathlib import Path
 from typing import Any
 
+import threading
+from collections import deque
+
 from ...observers.macos import AppleUIInspector, check_automation_permission_granted
+from ...cli.background import BackgroundRecorder
+
+try:  # AppKit is only available on macOS
+    from AppKit import NSEvent, NSEventMaskKeyDown, NSEventMaskKeyUp
+except Exception:  # pragma: no cover - AppKit unavailable outside macOS
+    NSEvent = None
+    NSEventMaskKeyDown = 0
+    NSEventMaskKeyUp = 0
 
 
 DEFAULT_SETTINGS = {
@@ -20,6 +31,96 @@ DEFAULT_SETTINGS = {
     ),
     "onboarding_done": False,
 }
+
+
+class MainThreadKeyboardRecorderShim:
+    """Main-thread keyboard monitor that forwards tokens to the recorder."""
+
+    def __init__(self) -> None:
+        self._monitors: list[Any] = []
+        self._queue: deque[tuple[str, str]] = deque()
+        self._lock = threading.Lock()
+        self._running = False
+
+    @staticmethod
+    def _event_token(ev) -> str:
+        vk = None
+        txt = ""
+        try:
+            vk = int(ev.keyCode())
+        except Exception:
+            pass
+        try:
+            txt = ev.characters() or ev.charactersIgnoringModifiers() or ""
+        except Exception:
+            txt = ""
+        if txt:
+            return f"TEXT:{txt}"
+        if vk is not None:
+            return f"VK:{vk}"
+        return "KEY:unknown"
+
+    def start(self) -> bool:
+        if self._running:
+            return True
+        if NSEvent is None:
+            logging.getLogger("GumUI").warning("AppKit unavailable; falling back to background keyboard monitor")
+            return False
+
+        def _enqueue(token: str, kind: str) -> None:
+            if not token:
+                return
+            with self._lock:
+                self._queue.append((token, kind))
+
+        def on_down(ev):
+            _enqueue(self._event_token(ev), "press")
+
+        def on_up(ev):
+            _enqueue(self._event_token(ev), "release")
+
+        try:
+            self._monitors = [
+                NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(NSEventMaskKeyDown, on_down),
+                NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(NSEventMaskKeyUp, on_up),
+            ]
+            self._running = True
+        except Exception:
+            self._monitors = []
+            self._running = False
+            logging.getLogger("GumUI").warning(
+                "Failed to start main-thread keyboard monitor; falling back to background listener",
+                exc_info=True,
+            )
+
+        return self._running
+
+    def stop(self) -> None:
+        if not self._running:
+            return
+        try:
+            for monitor in self._monitors:
+                try:
+                    NSEvent.removeMonitor_(monitor)
+                except Exception:
+                    pass
+        finally:
+            self._monitors = []
+            self._running = False
+            with self._lock:
+                self._queue.clear()
+
+    def pump_main_thread_tasks(self) -> None:
+        if not self._running:
+            return
+        events: list[tuple[str, str]]
+        with self._lock:
+            if not self._queue:
+                return
+            events = list(self._queue)
+            self._queue.clear()
+        for token, kind in events:
+            BackgroundRecorder.post_key_event(token, "press" if kind == "press" else "release")
 
 
 class Tooltip:

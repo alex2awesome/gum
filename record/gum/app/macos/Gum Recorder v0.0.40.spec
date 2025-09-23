@@ -13,6 +13,7 @@ hiddenimports += collect_submodules('shapely')
 hiddenimports += collect_submodules('pynput')
 hiddenimports += collect_submodules('mss')
 hiddenimports += collect_submodules('gum.observers')
+hiddenimports += collect_submodules('gum.cli')
 
 
 a = Analysis(

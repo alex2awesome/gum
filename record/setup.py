@@ -35,7 +35,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'gum=gum.cli:main',
+            'gum=gum.cli:cli_main',
         ],
     },
     description="A Python package with command-line interface",

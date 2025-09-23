@@ -137,6 +137,7 @@ pyinstaller \
   --collect-data shapely \
   --collect-submodules pynput \
   --collect-submodules mss \
+  --collect-submodules gum.cli \
   --collect-submodules gum.observers \
   --hidden-import Quartz \
   --hidden-import AppKit \
@@ -216,5 +217,4 @@ echo "==> Build complete"
 echo "Open the app at: ${APP_PATH}"
 echo "Version: ${VERSION}"
 echo "Note: On first run, macOS will ask for Screen Recording, Accessibility, Input Monitoring, and Automation permissions."
-
 

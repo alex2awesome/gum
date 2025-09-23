@@ -4,6 +4,7 @@ import os
 import sys
 import plistlib
 import threading
+import logging
 
 # Ensure package is importable when frozen
 if getattr(sys, "frozen", False):
@@ -69,6 +70,7 @@ def run():
     settings = ui.load_settings(settings_path, default_output_dir)
     output_dir = settings.get("output_dir", default_output_dir)
     screenshots_dir = os.path.join(output_dir, "screenshots")
+    kb_recorder = ui.MainThreadKeyboardRecorderShim()
     output_dir_display_var = None
     output_path_tooltip = None
 
@@ -214,9 +216,19 @@ def run():
             messagebox.showerror("Cannot write to output folder", f"Directory: {output_dir}\nError: {err}\n\nChoose a different folder or fix permissions.")
             return
 
-        # Ensure Screen handles keyboard monitoring via AppKit on main thread
-        if "GUM_DISABLE_KEYBOARD" in os.environ:
-            del os.environ["GUM_DISABLE_KEYBOARD"]
+        # Allow the main-thread shim to handle keyboard events when available;
+        # fall back to the screen observer's internal backends otherwise.
+        shim_running = False
+        try:
+            shim_running = kb_recorder.start()
+        except Exception:
+            logging.getLogger("GumUI").exception("Keyboard shim failed to start")
+            shim_running = False
+
+        if shim_running:
+            os.environ["GUM_DISABLE_KEYBOARD"] = "1"
+        else:
+            os.environ.pop("GUM_DISABLE_KEYBOARD", None)
 
         try:
             BackgroundRecorder.start(
@@ -226,11 +238,22 @@ def run():
                 debug=True,
             )
             recording_active["value"] = True
-            status_var.set("Recording… (Click Stop to pause)")
+            keyboard_enabled["value"] = shim_running
+            if shim_running:
+                status_var.set("Recording… (Click Stop to pause)")
+            else:
+                status_var.set("Recording… (Keyboard fallback active; click Stop to pause)")
             start_btn.config(state=tk.DISABLED)
             stop_btn.config(state=tk.NORMAL)
-            # Keyboard monitoring handled by Screen via AppKit; no background threads
+            if not shim_running:
+                logging.getLogger("GumUI").info("Keyboard shim unavailable; relying on background listener")
         except Exception as e:
+            if shim_running:
+                try:
+                    kb_recorder.stop()
+                except Exception:
+                    logging.getLogger("GumUI").exception("Failed to stop keyboard shim after startup error")
+                os.environ.pop("GUM_DISABLE_KEYBOARD", None)
             messagebox.showerror("Failed to start", str(e))
 
     def stop_recording() -> None:
@@ -238,7 +261,10 @@ def run():
             return
         try:
             BackgroundRecorder.stop()
+            kb_recorder.stop()
+            os.environ.pop("GUM_DISABLE_KEYBOARD", None)
             recording_active["value"] = False
+            keyboard_enabled["value"] = False
             status_var.set("Stopped. Press Start to record again.")
             start_btn.config(state=tk.NORMAL)
             stop_btn.config(state=tk.DISABLED)
@@ -356,6 +382,12 @@ def run():
     output_path_tooltip = ui.Tooltip(output_dir_dropdown, os.path.abspath(output_dir), delay=0)
 
     # Main-thread pump for any queued tasks from keyboard recorder
+    # Main-thread pump for keyboard events
+    def _pump_keyboard() -> None:
+        kb_recorder.pump_main_thread_tasks()
+        root.after(50, _pump_keyboard)
+    _pump_keyboard()
+
     # Periodically refresh permission statuses
     def periodic_refresh():
         try:
