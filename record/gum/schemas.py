@@ -40,6 +40,8 @@ class PropositionSchema(BaseModel):
 class Update(BaseModel):
     content: str = Field(..., description="The content of the update")
     content_type: Literal["input_text", "input_image"] = Field(..., description="The type of the update")
+    app_name: Optional[str] = Field(default=None, description="Active application name when the update was captured")
+    browser_url: Optional[str] = Field(default=None, description="Active browser URL when the update was captured")
 
 RelationLabel = Literal["IDENTICAL", "SIMILAR", "UNRELATED"]
 

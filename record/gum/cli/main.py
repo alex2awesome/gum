@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 
 from dotenv import load_dotenv
 
 from ..gum import gum as GumApp
-from ..observers import Screen
+from ..observers import AppAndBrowserInspector, Screen
 
 load_dotenv()
 
@@ -63,6 +64,9 @@ async def _run_cli() -> None:
     args = parse_args()
     print(f"User Name: {args.user_name}")
 
+    inspector_logger = logging.getLogger("gum.inspector")
+    app_inspector = AppAndBrowserInspector(inspector_logger)
+
     screen_observer = Screen(
         screenshots_dir=args.screenshots_dir,
         debug=args.debug,
@@ -70,9 +74,15 @@ async def _run_cli() -> None:
         scroll_min_distance=args.scroll_min_distance,
         scroll_max_frequency=args.scroll_max_frequency,
         scroll_session_timeout=args.scroll_session_timeout,
+        app_inspector=app_inspector,
     )
 
-    async with GumApp(args.user_name, screen_observer, data_directory=args.data_directory):
+    async with GumApp(
+        args.user_name,
+        screen_observer,
+        data_directory=args.data_directory,
+        app_and_browser_inspector=app_inspector,
+    ):
         await asyncio.Future()
 
 

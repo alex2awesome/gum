@@ -36,7 +36,7 @@ def _detect_app_version() -> str:
                     v = data.get("CFBundleShortVersionString") or data.get("CFBundleVersion")
                     if isinstance(v, str) and v.strip():
                         return v.strip()
-    except Exception:
+    except Exception:  # Catches any error during version detection from Info.plist
         pass
     return "0.0"
 
@@ -48,17 +48,17 @@ def run():
         import tkinter as tk
         from tkinter import messagebox
         from tkinter import filedialog
-    except Exception:
+    except Exception:  # Catches tkinter import failures (fallback to CLI mode)
         os.environ.setdefault("PYTHONASYNCIODEBUG", "0")
         try:
             main()
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:  # Catches Ctrl+C interruption during CLI fallback
             pass
         return
 
     try:
         from . import app_entry_utils as ui  # type: ignore
-    except ImportError:
+    except ImportError:  # Catches relative import failures (fallback to absolute import)
         from gum.app.macos import app_entry_utils as ui  # type: ignore
 
     # ------- Settings and defaults -------
@@ -94,7 +94,7 @@ def run():
             with open(test_path, "w") as f:
                 f.write("ok")
             os.remove(test_path)
-        except Exception as e:
+        except Exception as e:  # Catches directory creation/write permission failures
             messagebox.showerror("Cannot use folder", f"{new_dir}\nError: {e}")
             return
         output_dir = new_dir
@@ -192,7 +192,7 @@ def run():
                 f.write("ok")
             os.remove(test_path)
             return True, None
-        except Exception as e:
+        except Exception as e:  # Catches directory creation/write test failures
             return False, str(e)
 
     def permissions_blocking_message() -> str | None:
@@ -221,21 +221,26 @@ def run():
         shim_running = False
         try:
             shim_running = kb_recorder.start()
-        except Exception:
+        except Exception:  # Catches keyboard shim startup failures
             logging.getLogger("GumUI").exception("Keyboard shim failed to start")
             shim_running = False
 
-        if shim_running:
+        input_monitoring_granted = ui.check_input_monitoring_granted() is True
+        if shim_running and input_monitoring_granted:
             os.environ["GUM_DISABLE_KEYBOARD"] = "1"
         else:
             os.environ.pop("GUM_DISABLE_KEYBOARD", None)
+            if shim_running and not input_monitoring_granted:
+                logging.getLogger("GumUI").info(
+                    "Input Monitoring permission missing; keeping background keyboard listener active as fallback"
+                )
 
         try:
             BackgroundRecorder.start(
                 user_name="anonymous",
                 data_directory=output_dir,
                 screenshots_dir=screenshots_dir,
-                debug=True,
+                debug=False,
             )
             recording_active["value"] = True
             keyboard_enabled["value"] = shim_running
@@ -247,11 +252,11 @@ def run():
             stop_btn.config(state=tk.NORMAL)
             if not shim_running:
                 logging.getLogger("GumUI").info("Keyboard shim unavailable; relying on background listener")
-        except Exception as e:
+        except Exception as e:  # Catches BackgroundRecorder startup failures
             if shim_running:
                 try:
                     kb_recorder.stop()
-                except Exception:
+                except Exception:  # Catches keyboard shim cleanup failures
                     logging.getLogger("GumUI").exception("Failed to stop keyboard shim after startup error")
                 os.environ.pop("GUM_DISABLE_KEYBOARD", None)
             messagebox.showerror("Failed to start", str(e))
@@ -269,7 +274,7 @@ def run():
             start_btn.config(state=tk.NORMAL)
             stop_btn.config(state=tk.DISABLED)
             # No-op; no background keyboard recorder
-        except Exception as e:
+        except Exception as e:  # Catches BackgroundRecorder stop failures
             messagebox.showerror("Failed to stop", str(e))
 
     def quit_app() -> None:
@@ -392,7 +397,7 @@ def run():
     def periodic_refresh():
         try:
             refresh_permission_status()
-        except Exception:
+        except Exception:  # Catches permission status refresh failures
             pass
         finally:
             root.after(3000, periodic_refresh)
@@ -405,7 +410,7 @@ def run():
         def _prime() -> None:
             try:
                 ui.prime_screen_recording_permission()
-            except Exception:
+            except Exception:  # Catches screen recording permission preflight failures
                 pass
 
         threading.Thread(name="ScreenRecordingPreflight", target=_prime, daemon=True).start()
@@ -417,7 +422,7 @@ def run():
         def _prime() -> None:
             try:
                 ui.prime_accessibility_permission()
-            except Exception:
+            except Exception:  # Catches accessibility permission preflight failures
                 pass
 
         threading.Thread(name="AccessibilityPreflight", target=_prime, daemon=True).start()
@@ -429,7 +434,7 @@ def run():
         def _prime() -> None:
             try:
                 ui.prime_input_monitoring_permission()
-            except Exception:
+            except Exception:  # Catches input monitoring permission preflight failures
                 pass
 
         threading.Thread(name="InputMonitoringPreflight", target=_prime, daemon=True).start()
@@ -441,7 +446,7 @@ def run():
         def _prime() -> None:
             try:
                 ui.prime_automation_permissions()
-            except Exception:
+            except Exception:  # Catches automation permission preflight failures
                 pass
 
         threading.Thread(name="AutomationPreflight", target=_prime, daemon=True).start()

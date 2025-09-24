@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import threading
 from typing import Optional
 
 from ..gum import gum as GumApp
-from ..observers import Screen
+from ..observers import AppAndBrowserInspector, Screen
 
 
 class BackgroundRecorder:
@@ -40,6 +41,8 @@ class BackgroundRecorder:
         cls._loop = asyncio.new_event_loop()
 
         async def _run():
+            inspector_logger = logging.getLogger("gum.inspector.background")
+            app_inspector = AppAndBrowserInspector(inspector_logger)
             screen_observer = Screen(
                 screenshots_dir=screenshots_dir,
                 debug=debug,
@@ -50,9 +53,15 @@ class BackgroundRecorder:
                 scroll_min_distance=scroll_min_distance,
                 scroll_max_frequency=scroll_max_frequency,
                 scroll_session_timeout=scroll_session_timeout,
+                app_inspector=app_inspector,
             )
             BackgroundRecorder._screen = screen_observer
-            async with GumApp(user_name, screen_observer, data_directory=data_directory):
+            async with GumApp(
+                user_name,
+                screen_observer,
+                data_directory=data_directory,
+                app_and_browser_inspector=app_inspector,
+            ):
                 await cls._stop_event.wait()
 
         def _thread_target():

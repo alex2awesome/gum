@@ -150,28 +150,44 @@ class MacKeyboardBackend(KeyboardBackend):
             return False
 
     def start(self, dispatch: KeyDispatch) -> None:
-        prefer = os.environ.get("GUM_KEYBOARD_BACKEND", "auto").lower()
-        use_appkit = (
-            self._appkit is not None
-            and prefer in ("auto", "appkit")
-            and self._has_appkit_access()
-        )
+        prefer_raw = os.environ.get("GUM_KEYBOARD_BACKEND", "auto")
+        prefer = (prefer_raw or "auto").strip().lower()
+        if prefer not in {"auto", "appkit", "pynput"}:
+            prefer = "auto"
 
-        if use_appkit:
-            try:
-                self._appkit.start(dispatch)
-            except Exception as exc:
-                log.warning(f"AppKit keyboard backend unavailable, falling back to pynput: {exc}")
-                self._appkit.stop()
+        attempted_appkit = False
+        if self._appkit is not None and prefer != "pynput":
+            attempted_appkit = True
+            has_access = self._has_appkit_access()
+            if not has_access and prefer == "auto":
+                log.debug(
+                    "AppKit keyboard backend preflight denied accessibility permission; using pynput instead"
+                )
             else:
-                self._active = self._appkit
-                return
-        elif prefer == "appkit":
-            log.warning("AppKit keyboard backend requested but lacks accessibility permission; using pynput fallback")
+                if not has_access:
+                    log.warning(
+                        "AppKit keyboard backend requested without accessibility permission; attempting anyway"
+                    )
+                try:
+                    self._appkit.start(dispatch)
+                except Exception as exc:
+                    log.warning(f"AppKit keyboard backend unavailable, falling back to pynput: {exc}")
+                    self._appkit.stop()
+                else:
+                    self._active = self._appkit
+                    return
+
+        if prefer == "appkit":
+            log.warning("AppKit keyboard backend requested but unavailable; using pynput fallback")
+        elif prefer == "pynput":
+            log.info("Keyboard monitoring forced to pynput backend")
 
         self._pynput.start(dispatch)
         self._active = self._pynput
-        log.info("Keyboard monitoring enabled (pynput fallback)")
+        if attempted_appkit and prefer != "pynput":
+            log.info("Keyboard monitoring enabled (pynput fallback)")
+        else:
+            log.info("Keyboard monitoring enabled (pynput)")
 
     def stop(self) -> None:
         try:

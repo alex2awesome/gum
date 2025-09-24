@@ -53,6 +53,7 @@ class Screen(Observer):
         keyboard_backend: Optional[KeyboardBackend],
         mouse_backend: Optional[MouseBackend],
         screenshot_backend_factory: Callable[[], ScreenshotBackend],
+        app_inspector: Optional[Any] = None,
         visibility_guard: Optional[VisibilityGuard] = None,
         *,
         screenshots_dir: str = "~/Downloads/records/screenshots",
@@ -70,6 +71,7 @@ class Screen(Observer):
         self._keyboard_backend = keyboard_backend or NullKeyboardBackend()
         self._mouse_backend = mouse_backend or NullMouseBackend()
         self._screenshot_backend_factory = screenshot_backend_factory
+        self._app_inspector = app_inspector
         self._visibility_guard = visibility_guard
 
         self.screens_dir = os.path.abspath(os.path.expanduser(screenshots_dir))
@@ -184,6 +186,34 @@ class Screen(Observer):
         self._scroll_last_time = current_time
         return True
 
+    def _snapshot_app_context(self, cursor: Optional[tuple[float, float]] = None) -> tuple[Optional[str], Optional[str]]:
+        inspector = getattr(self, "_app_inspector", None)
+        if inspector is None:
+            return None, None
+        app_name: Optional[str] = None
+        browser_url: Optional[str] = None
+
+        try:
+            app_name = inspector.get_frontmost_app_name()
+        except Exception:
+            app_name = None
+
+        if not app_name and cursor and hasattr(inspector, "app_at_point"):
+            try:
+                name_at_point, _ = inspector.app_at_point(*cursor)
+            except Exception:
+                name_at_point = None
+            if name_at_point:
+                app_name = name_at_point
+
+        if app_name:
+            try:
+                browser_url = inspector.get_browser_url(app_name)
+            except Exception:
+                browser_url = None
+
+        return app_name, browser_url
+
     async def _cleanup_key_screenshots(self) -> None:
         if len(self._key_screenshots) <= 2:
             return
@@ -240,18 +270,26 @@ class Screen(Observer):
     ) -> None:
         if ev is None:
             return
+        cursor = ev.get("cursor") if isinstance(ev, dict) else None
+        app_name, browser_url = self._snapshot_app_context(cursor)
         mon = ev.get("mon") if isinstance(ev, dict) else None
         mon_sfx = f"@mon{mon}" if mon is not None else ""
         if action and "scroll" in action:
             scroll_info = ev.get("scroll", (0, 0))
             step = f"scroll{mon_sfx}({ev['position'][0]:.1f}, {ev['position'][1]:.1f}, dx={scroll_info[0]:.2f}, dy={scroll_info[1]:.2f})"
-            await self.update_queue.put(Update(content=step, content_type="input_text"))
+            await self.update_queue.put(
+                Update(content=step, content_type="input_text", app_name=app_name, browser_url=browser_url)
+            )
         elif action and "click" in action:
             step = f"{action}{mon_sfx}({ev['position'][0]:.1f}, {ev['position'][1]:.1f})"
-            await self.update_queue.put(Update(content=step, content_type="input_text"))
+            await self.update_queue.put(
+                Update(content=step, content_type="input_text", app_name=app_name, browser_url=browser_url)
+            )
         elif action:
             step = f"{action}{mon_sfx}({ev.get('text', '')})"
-            await self.update_queue.put(Update(content=step, content_type="input_text"))
+            await self.update_queue.put(
+                Update(content=step, content_type="input_text", app_name=app_name, browser_url=browser_url)
+            )
 
     async def stop(self) -> None:
         await super().stop()
@@ -380,6 +418,7 @@ class Screen(Observer):
                     "before": fr,
                     "scale": scale,
                     "scroll": (dx, dy),
+                    "cursor": (x, y),
                 }
                 await flush_pending()
 
@@ -412,6 +451,7 @@ class Screen(Observer):
                     "mon": idx,
                     "before": fr,
                     "scale": scale,
+                    "cursor": (x, y),
                 }
                 await flush_pending()
 
@@ -446,7 +486,15 @@ class Screen(Observer):
                         pass
 
                 step = f"key_{typ}@mon{idx}({tok})"
-                await self.update_queue.put(Update(content=step, content_type="input_text"))
+                app_name, browser_url = self._snapshot_app_context((x, y))
+                await self.update_queue.put(
+                    Update(
+                        content=step,
+                        content_type="input_text",
+                        app_name=app_name,
+                        browser_url=browser_url,
+                    )
+                )
 
                 async with self._key_activity_lock:
                     current_time = time.time()

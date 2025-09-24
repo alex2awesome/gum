@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Callable
 from logging.handlers import RotatingFileHandler
 
@@ -21,6 +22,7 @@ class gum:
         db_name: str = "actions.db",
         max_concurrent_updates: int = 4,
         verbosity: int = logging.INFO,
+        app_and_browser_inspector: AppAndBrowserInspector | None = None,
     ):
         # basic paths
         data_directory = os.path.expanduser(data_directory)
@@ -55,7 +57,7 @@ class gum:
         self._tasks: set[asyncio.Task] = set()
         self._loop_task: asyncio.Task | None = None
         self.update_handlers: list[Callable[[Observer, Update], None]] = []
-        self._app_and_browser_inspector = AppAndBrowserInspector(self.logger)
+        self._app_and_browser_inspector = app_and_browser_inspector or AppAndBrowserInspector(self.logger)
 
     def start_update_loop(self):
         if self._loop_task is None:
@@ -132,10 +134,14 @@ class gum:
         self.logger.info(f"Content ({update.content_type}): {update.content[:10]}")
 
         async with self._session() as session:
-            app_name = self._app_and_browser_inspector.get_frontmost_app_name()
-            browser_url = self._app_and_browser_inspector.get_browser_url(app_name) if app_name else None
+            app_name = update.app_name or self._app_and_browser_inspector.get_frontmost_app_name()
+            browser_url = update.browser_url
+            if app_name and browser_url is None:
+                browser_url = self._app_and_browser_inspector.get_browser_url(app_name)
             if app_name:
                 self.logger.debug("Active app resolved to '%s'%s", app_name, f" (url={browser_url})" if browser_url else "")
+
+            now = datetime.now().astimezone()
 
             observation = Observation(
                 observer_name=observer.name,
@@ -143,6 +149,8 @@ class gum:
                 content_type=update.content_type,
                 app_name=app_name,
                 browser_url=browser_url,
+                created_at=now,
+                updated_at=now,
             )
 
             if await self._handle_audit(observation):

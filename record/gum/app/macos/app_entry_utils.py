@@ -316,7 +316,7 @@ def _request_screen_recording_access(open_settings: bool) -> bool:
             except TypeError:
                 request(None)
             triggered = True
-    except Exception:
+    except Exception:  # Catches screen recording permission failures
         pass
 
     if open_settings:
@@ -370,7 +370,7 @@ def _prompt_accessibility_access(open_settings: bool) -> bool:
                 NSDictionary.dictionaryWithDictionary_(options)
             )
             triggered = True
-    except Exception:
+    except Exception:  # Catches accessibility permission failures
         pass
 
     if open_settings:
@@ -414,7 +414,7 @@ def check_input_monitoring_granted() -> bool | None:
             return False
         try:
             Quartz.CFRelease(tap)
-        except Exception:
+        except Exception:  # Catches input monitoring permission preflight failures
             pass
         return True
     except Exception:
@@ -437,7 +437,7 @@ def _request_input_monitoring_access(open_settings: bool) -> bool:
             except TypeError:
                 request(None)
             triggered = True
-    except Exception:
+    except Exception:  # Catches input monitoring permission preflight failures
         pass
 
     if open_settings:
@@ -474,7 +474,7 @@ def prompt_automation_access() -> None:
         try:
             inspector = AppleUIInspector(logging.getLogger("gum.ui.automation_prompt"))
             running_snapshot = list(inspector.running_browser_applications())
-        except Exception:
+        except Exception:  # Catches automation permission preflight failures
             inspector = None
             running_snapshot = []
 
@@ -486,7 +486,7 @@ def prompt_automation_access() -> None:
                 status_check = check_automation_permission_granted(force_refresh=True)
                 if status_check is not True:
                     used_new_path = False
-        except Exception:
+        except Exception:  # Catches automation permission preflight failures
             used_new_path = False
 
     if not used_new_path:
@@ -519,7 +519,7 @@ def _legacy_trigger_automation_scripts() -> None:
                 timeout=1.5,
             )
             any_triggered = True
-        except Exception:
+        except Exception:  # Catches automation permission preflight failures
             continue
 
     if not any_triggered:
@@ -530,7 +530,7 @@ def _legacy_trigger_automation_scripts() -> None:
                 text=True,
                 timeout=1.5,
             )
-        except Exception:
+        except Exception:  # Catches automation permission preflight failures
             pass
 
 
@@ -543,7 +543,7 @@ def prime_automation_permissions(logger: logging.Logger | None = None) -> None:
         attempted = inspector.prime_automation_for_running_browsers()
         if not attempted and check_automation_permission_granted(force_refresh=True) is not True:
             _legacy_trigger_automation_scripts()
-    except Exception:
+    except Exception:  # Catches automation permission preflight failures
         _legacy_trigger_automation_scripts()
 
 
@@ -585,7 +585,7 @@ def _collect_automation_guidance(status_before: bool | None, status_after: bool 
     if not running and inspector is not None:
         try:
             running = list(inspector.running_browser_applications())
-        except Exception:
+        except Exception:  # Catches automation permission preflight failures
             running = []
     if not running:
         notes.append("Open Safari, Chrome, Brave, Edge, or Arc and leave a window active before enabling browser URLs.")
